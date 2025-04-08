@@ -1,31 +1,62 @@
-name: SonarQube Scan
+name: Prod CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  sonarQube:
-    name: SonarQube Analysis
+  build-test-scan:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17' # Adjust based on your code
-          distribution: 'adopt'
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: SonarQube Code Quality Scan
+        uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=my-project
+            -Dsonar.projectKey=myproject
             -Dsonar.sources=.
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
+            -Dsonar.host.url=http://<SONARQUBE-SERVER>:9000
+
+      - name: Docker Build
+        run: |
+          docker build -t myapp:latest .
+
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'myapp:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Push to DockerHub or ECR
+        run: |
+          docker tag myapp:latest myrepo/myapp:latest
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker push myrepo/myapp:latest
+
+  deploy:
+    needs: build-test-scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
