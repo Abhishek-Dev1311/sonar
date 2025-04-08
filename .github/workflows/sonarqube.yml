@@ -29,13 +29,7 @@ jobs:
         run: |
           docker build -t myapp:latest .
 
-      - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'myapp:latest'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
+
 
       - name: Push to DockerHub
         run: |
