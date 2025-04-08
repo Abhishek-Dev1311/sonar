@@ -23,7 +23,7 @@ jobs:
           args: >
             -Dsonar.projectKey=myproject
             -Dsonar.sources=.
-            -Dsonar.host.url=http://<SONARQUBE-SERVER>:9000
+            -Dsonar.host.url=http://3.108.250.76:9000/
 
       - name: Docker Build
         run: |
